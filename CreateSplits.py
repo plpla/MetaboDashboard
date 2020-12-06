@@ -12,18 +12,18 @@ from Utils import *
 
 if __name__ == "__main__":
     # Read data matrix
-    if LEARN_CONFIG["FileType"] == "progenesis":
+    if FILE_TYPE == "progenesis":
         compounds_info, normalized, raw, labels, sample_names = read_Progenesis_compounds_table(DATA_MATRIX)
-        if LEARN_CONFIG["UseNormalized"]:
+        if USE_NORMALIZED:
             df = normalized
         else:
             df = raw
     
-    elif LEARN_CONFIG["FileType"] == "excel":
+    elif FILE_TYPE == "excel":
         compounds_info, df, labels, sample_names = read_excel_file(DATA_MATRIX)
-    elif LEARN_CONFIG["FileType"] == "csv":
+    elif FILE_TYPE == "csv":
         compounds_info, df, labels, sample_names = read_text_file(DATA_MATRIX, sep=",")
-    elif LEARN_CONFIG["FileType"] == "tsv":
+    elif FILE_TYPE == "tsv":
         compounds_info, df, labels, sample_names = read_text_file(DATA_MATRIX, sep="\t")
     else:
         raise IOError("File type is unknown")

@@ -6,18 +6,9 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.ensemble import AdaBoostClassifier
 
 LEARN_CONFIG={
-    "FileType": "progenesis", # progenesis, excel, csv or tsv
-    "UseNormalized": True, # If using progenesis file. Otherwise it is not considered
-    "Nsplit": 3,
-    "CV_folds": 3,
-    "Algos":{
-        "DecisionTree":{
-            "function": DecisionTreeClassifier,
-            "ParamGrid": {
-                "max_depth": [1, 3, 5, 10],
-                "min_samples_split": [2, 5, 10]
-            }
-        },
+    
+    "CV_folds": 3, # Numbre of cross-validation fold. This is performed on each split
+    "Algos":{ # Each algo will be optimized on each split. CV is used to find the optimal parameters combination from the param grid.
         "RandomForest":{
             "function": RandomForestClassifier,
             "ParamGrid": {

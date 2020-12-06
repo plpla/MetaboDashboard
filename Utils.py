@@ -18,13 +18,13 @@ def read_excel_file(filename):
 
     sample_names = datatable.iloc[:, num_columns_before_first_sample:].columns
     compounds_info = datatable.iloc[:, :num_columns_before_first_sample]
-    df = datatable.iloc[:num_columns_before_first_sample:]
+    df = datatable.iloc[num_columns_before_first_sample:]
 
     # Before return make sure df and labels have the same size. 
     if datatable.shape[1] != len(labels_array):
         raise ValueError("Df and targets don't have the same length. Make sure your file is formated properly.")
 
-    return compounds_info, df, labels, sample_names
+    return compounds_info.T, df.T, labels, sample_names
 
 
 def read_text_file(filename, sep=","):
@@ -43,7 +43,7 @@ def read_text_file(filename, sep=","):
     if datatable.shape[1] != len(labels_array):
         raise ValueError("Df and targets don't have the same length. Make sure your file is formated properly.")
 
-    return compounds_info, df, labels, sample_names
+    return compounds_info.T, df.T, labels, sample_names
 
 
 def read_Progenesis_compounds_table(fileName):
@@ -94,9 +94,9 @@ def generate_splits(df, labels, compounds_info):
         group_to_class = get_group_to_class(EXPERIMENT_DESIGNS[design_name]["classes"])
         groups_to_keep = [item for sublist in EXPERIMENT_DESIGNS[design_name]["classes"].values() for item in sublist]
 
-        design_df, labels_design = filter_sample_based_on_labels(df, labels, groups_to_keep)
+        design_df, labels_design = filter_sample_based_on_labels(df, label, groups_to_keep)
         labels_design = [group_to_class[i] for i in labels_design]
-        for split_number in range(LEARN_CONFIG["Nsplit"]):
+        for split_number in range(N_SPLITS):
             X_train, X_test, y_train, y_test = train_test_split(design_df, \
                 labels_design, test_size=EXPERIMENT_DESIGNS[design_name]["TestSize"])
             # Write split to files
@@ -105,7 +105,7 @@ def generate_splits(df, labels, compounds_info):
                 pkl.dump(y_train, fo)
                 pkl.dump(X_test, fo)
                 pkl.dump(y_test, fo)
-                pkl.dump(compounds_info)
+                pkl.dump(compounds_info, fo)
 
 def run_learning_job(job_config):
     # (filename, algo_config_name, algo_function, grid)

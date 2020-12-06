@@ -60,7 +60,7 @@ def layout():
                 ),
                 html.H6("Experiment number"),
                 dcc.Dropdown(id="experiment_dropdown",
-                    options=[{"label": i, "value": i} for i in range(LEARN_CONFIG["Nsplit"])],
+                    options=[{"label": i, "value": i} for i in range(N_SPLITS)],
                     value="0",
                     clearable=False
                 ),
@@ -196,7 +196,6 @@ def get_experiment_statistics(exp_design, ml_exp_name, ml_exp_number):
     # Load data matrix
     with open(data_matrix_filename, "rb") as fi:
         X_train = pkl.load(fi)
-        print(X_train.shape)
         y_train = pkl.load(fi)
         X_test = pkl.load(fi)
         y_test = pkl.load(fi)
@@ -292,14 +291,10 @@ def show_global_view(ml_dropdown, design_dropdown):
         """
         df = df.T
         nbr_col = len(df.columns.to_list())
-        print(nbr_col)
-        print((df.astype(bool).sum(axis=0)).shape)
         df_filtered = df.loc[df.astype(bool).sum(axis=1) >= nbr_col*threshold]
         return df_filtered.T
-    
-    print(train_df.shape)
+
     train_df = filter_cluster(train_df, threshold=1.0)
-    print(train_df.shape)
     embedding = reducer.fit_transform(train_df)
 
     trace_train = go.Scatter(
@@ -364,8 +359,7 @@ def show_global_view(ml_dropdown, design_dropdown):
         y=split_test_accuracy,
         name="Test accuracy"
     )
-    #fig = go.Figure(data=[trace_train, trace_test]) #Uncomment for accuracy plot instead of UMAP. TODO: add choice (maybe config file?)
-    #print("Number of items:{}".format(len(train_df.columns)))
+    #fig = go.Figure(data=[trace_train, trace_test]) #Uncomment for accuracy plot instead of UMAP. TODO: add choice (maybe config file?
     return fig, df.to_dict("records")
 
 
@@ -538,15 +532,12 @@ def update_core(exp_design, ml_exp_name, ml_exp_number):
 
     if np.sum(features_importance > 0.0) < NUMBER_FEATURE_TO_KEEP_FOR_PCA:
         important_index = [i[1] for i in zipped[-1 * np.sum(features_importance > 0.0):]]
-        print(important_index)
+        
     else:
         important_index = [i[1] for i in zipped[-1 * NUMBER_FEATURE_TO_KEEP_FOR_PCA:]]
-        print(important_index)
     
     train_df_filtered = train_df[important_index]
     test_df_filtered = test_df[important_index]
-    print("Important index:")
-    print(important_index)
 
     # Compute PCA
     merged_df = train_df_filtered.append([test_df_filtered])
@@ -598,7 +589,6 @@ def update_core(exp_design, ml_exp_name, ml_exp_number):
 
 def get_static_heatmap_plot(NpArray, Label_X, Label_Y, targets):
     target_colors = dict(zip(set(targets), sns.color_palette("Set2")))
-    print(target_colors)
     row_colors = [target_colors[i] for i in targets]
     heatmap = sns.clustermap(pd.DataFrame(NpArray, columns=Label_X, index=Label_Y),
          row_colors=row_colors, cmap="RdBu_r")
