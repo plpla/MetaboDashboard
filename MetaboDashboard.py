@@ -64,12 +64,12 @@ def layout():
                     value="0",
                     clearable=False
                 ),
-                html.H6("Show QCs"),
-                dcc.Checklist(id="show_qc_checklist",
-                    options=[
-                        {"label": "QC all run", "value": "true"} # Not sure how to label these 
-                    ]
-                ),
+                #html.H6("Show QCs"),
+                #dcc.Checklist(id="show_qc_checklist",
+                #    options=[
+                #        {"label": "QC all run", "value": "true"} # Not sure how to label these 
+                #    ]
+                #),
                 html.H6("Current view info", style={"marginTop": 25}),
                 html.Div(id="view_info", children=""),
                 html.H6("Global metrics", style={"marginTop": 25}),
@@ -171,32 +171,97 @@ def layout():
 
 app.layout = layout()
 
-
-
-def get_experiment_statistics(y_true_train, y_pred_train, y_true_test, y_pred_test):
+@app.callback(
+    Output("metrics_table", "children"),
+    [Input("design_dropdown", "value"),
+    Input("ml_dropdown", "value"),
+    Input("experiment_dropdown", "value")]
+)
+def get_experiment_statistics(exp_design, ml_exp_name, ml_exp_number):
     # TODO: Increase margins bottom.
+    pos_label = EXPERIMENT_DESIGNS[exp_design]["positive_class"]
+
+    model_filename = os.path.join("Results", 
+        "{}_{}_{}.pkl".format(exp_design, ml_exp_number, ml_exp_name))
+
+    data_matrix_filename = os.path.join("Splits",
+        "{}_{}".format(exp_design, ml_exp_number))
+    
+    # Load GridSearch
+    with open(model_filename, "rb") as fi:
+        gc = pkl.load(fi)
+        #train_predict = pkl.load(fi)
+        #test_predict = pkl.load(fi)
+
+    # Load data matrix
+    with open(data_matrix_filename, "rb") as fi:
+        X_train = pkl.load(fi)
+        print(X_train.shape)
+        y_train = pkl.load(fi)
+        X_test = pkl.load(fi)
+        y_test = pkl.load(fi)
+
     table = []
     table_style = {"padding": "12px 55px", "text-align": "left"}
     table.append(html.Tr([html.Th("Metric", style=table_style), html.Th("Train"), html.Th("Test")]))
+    if isinstance(gc.best_estimator_, LinearSVC): # No predict_proba for LinearSVC so we use the distance to the margin.
+        y_margins = gc.best_estimator_.decision_function(X_test)
+        y_test_pred_prob = (y_margins - y_margins.min()) / (y_margins.max() - y_margins.min())
+        y_margins = gc.best_estimator_.decision_function(X_train)
+        y_train_pred_prob = (y_margins - y_margins.min()) / (y_margins.max() - y_margins.min())
+    else:
+        y_train_pred_prob = [i[1] for i in gc.predict_proba(X_train)]
+        y_test_pred_prob = [i[1] for i in gc.predict_proba(X_test)]
+    
+    y_train_pred = gc.predict(X_train)
+    y_test_pred =  gc.predict(X_test)
     for stat in STATISTICS:
         if STATISTICS[stat] == roc_auc_score:
-            metric_value_train = STATISTICS[stat](y_true_train, y_pred_train)
-            metric_value_test = STATISTICS[stat](y_true_test, y_pred_test)
+            #print("y_train shape: {}".format(y_train.shape))
+            #print("y_train_pred_prob shape: {}".format(len(y_train_pred_prob)))
+            metric_value_train = STATISTICS[stat](y_true=y_train, y_score=y_train_pred_prob)
+            metric_value_test = STATISTICS[stat](y_true = y_test, y_score= y_test_pred_prob)
+        elif STATISTICS[stat] in [recall_score, f1_score, precision_score]:
+            metric_value_train = STATISTICS[stat](y_train, y_train_pred, pos_label=pos_label )
+            metric_value_test = STATISTICS[stat](y_test, y_test_pred, pos_label=pos_label)
         else:
-            metric_value_train = STATISTICS[stat](y_true_train, y_pred_train)
-            metric_value_test = STATISTICS[stat](y_true_test, y_pred_test)
+            metric_value_train = STATISTICS[stat](y_train, y_train_pred)
+            metric_value_test = STATISTICS[stat](y_test, y_test_pred)
         
         if isinstance(metric_value_test, float):
             metric_value_test = "{:0.2f}".format(metric_value_test)
         if isinstance(metric_value_train, float):
             metric_value_train = "{:0.2f}".format(metric_value_train)
-        #new_div = html.Div("{}: {}, {}".format(stat, metric_value_train, metric_value_test))
         table.append(html.Tr([html.Td(stat), 
             html.Td(metric_value_train), 
             html.Td(metric_value_test)]
         ))
     return html.Table(table)
-    #return children
+
+# def get_experiment_statistics(y_true_train, y_pred_train, y_true_test, y_pred_test):
+#     # TODO: Increase margins bottom.
+#     table = []
+#     table_style = {"padding": "12px 55px", "text-align": "left"}
+#     table.append(html.Tr([html.Th("Metric", style=table_style), html.Th("Train"), html.Th("Test")]))
+#     for stat in STATISTICS:
+#         if STATISTICS[stat] == roc_auc_score:
+#             metric_value_train = STATISTICS[stat](y_true_train, y_pred_train)
+#             metric_value_test = STATISTICS[stat](y_true_test, y_pred_test)
+#         else:
+#             metric_value_train = STATISTICS[stat](y_true_train, y_pred_train)
+#             metric_value_test = STATISTICS[stat](y_true_test, y_pred_test)
+        
+#         if isinstance(metric_value_test, float):
+#             metric_value_test = "{:0.2f}".format(metric_value_test)
+#         if isinstance(metric_value_train, float):
+#             metric_value_train = "{:0.2f}".format(metric_value_train)
+#         #new_div = html.Div("{}: {}, {}".format(stat, metric_value_train, metric_value_test))
+#         table.append(html.Tr([html.Td(stat), 
+#             html.Td(metric_value_train), 
+#             html.Td(metric_value_test)]
+#         ))
+#     return html.Table(table)
+#     #return children
 
 @app.callback(
     [Output("accuracy_overview", "figure"),
@@ -311,6 +376,7 @@ def show_global_view(ml_dropdown, design_dropdown):
     Input("design_dropdown", "value")]
 )
 def compute_global_metrics(n_clicks, ml_algo, exp_design):
+    pos_label = EXPERIMENT_DESIGNS[exp_design]["positive_class"]
     if n_clicks is None or n_clicks == 0:
         return dash.no_update
     if dash.callback_context.triggered[0]['prop_id'].split('.')[0] != "compute_global_metrics":
@@ -325,40 +391,58 @@ def compute_global_metrics(n_clicks, ml_algo, exp_design):
             "{}_{}_{}.pkl".format(exp_design, split_number, ml_algo))
     
         with open(data_matrix_filename, "rb") as fi:
-            train_df = pkl.load(fi)
-            train_targets = pkl.load(fi)
-            test_df = pkl.load(fi)
-            test_targets = pkl.load(fi)
+            X_train = pkl.load(fi)
+            y_train = pkl.load(fi)
+            X_test = pkl.load(fi)
+            y_test = pkl.load(fi)
 
         with open(model_filename, "rb") as fi:
             gc = pkl.load(fi)
-            print(gc.best_estimator_.classes_)
-            train_predict = pkl.load(fi)
-            test_predict = pkl.load(fi)
+            #print(gc.best_estimator_.classes_)
+            y_train_pred = pkl.load(fi)
+            y_test_pred = pkl.load(fi)
+
+        if isinstance(gc.best_estimator_, LinearSVC):
+            y_margins = gc.best_estimator_.decision_function(X_test)
+            y_test_pred_prob = (y_margins - y_margins.min()) / (y_margins.max() - y_margins.min())
+            y_margins = gc.best_estimator_.decision_function(X_train)
+            y_train_pred_prob = (y_margins - y_margins.min()) / (y_margins.max() - y_margins.min())
+        else:
+            y_train_pred_prob = [i[1] for i in gc.predict_proba(X_train)]
+            y_test_pred_prob = [i[1] for i in gc.predict_proba(X_test)]
 
         for stat in STATISTICS:
-            metrics_results_train[stat].append(
-                STATISTICS[stat](train_targets, train_predict)
-            )
-            metrics_results_test[stat].append(
-                STATISTICS[stat](test_targets, test_predict)
-            )
-    
+            if STATISTICS[stat] == roc_auc_score:
+                #print("y_train shape: {}".format(y_train.shape))
+                #print("y_train_pred_prob shape: {}".format(len(y_train_pred_prob)))
+                metric_value_train = STATISTICS[stat](y_true=y_train, y_score=y_train_pred_prob)
+                metric_value_test = STATISTICS[stat](y_true = y_test, y_score= y_test_pred_prob)
+            elif STATISTICS[stat] in [recall_score, f1_score, precision_score]:
+                metric_value_train = STATISTICS[stat](y_train, y_train_pred, pos_label=pos_label )
+                metric_value_test = STATISTICS[stat](y_test, y_test_pred, pos_label=pos_label)
+            else:
+                metric_value_train = STATISTICS[stat](y_train, y_train_pred)
+                metric_value_test = STATISTICS[stat](y_test, y_test_pred)
+
+            metrics_results_train[stat].append(metric_value_train)
+            metrics_results_test[stat].append(metric_value_test)
+
     table = []
     table_style = {"padding": "12px 55px", "text-align": "left"}
     table.append(html.Tr([html.Th("Metric", style=table_style), html.Th("Train"), html.Th("Test")]))
     for stat in STATISTICS:
-        print(stat)
+        #(stat)
         train_average = np.average(metrics_results_train[stat])
         test_average = np.average(metrics_results_test[stat])
         train_std = np.std(metrics_results_train[stat])
         test_std = np.std(metrics_results_test[stat])
-        print(train_average, train_std)
+        #print(train_average, train_std)
         table.append(html.Tr([html.Td(stat), 
             html.Td("{:0.2f} ({:0.2f})".format(train_average, train_std)), 
             html.Td("{:0.2f} ({:0.2f})".format(test_average, test_std))]
         ))
     return html.Table(table)
+
 
 
 
@@ -403,14 +487,14 @@ def update_boxplot_metabolite(metabolite_name, exp_design, ml_exp_number):
     Output("metabolite_dropdown", "value"),
     Output("heatmap", "src"),
     Output("heatmap_title", "children"),
-    Output("metrics_table", "children"),
+    #Output("metrics_table", "children"),
     Output("view_info", "children")],
     [Input("design_dropdown", "value"),
     Input("ml_dropdown", "value"),
-    Input("experiment_dropdown", "value"),
-    Input("show_qc_checklist", "value")]
+    Input("experiment_dropdown", "value")]
+    #Input("show_qc_checklist", "value")]
 )
-def update_core(exp_design, ml_exp_name, ml_exp_number, show_qc):
+def update_core(exp_design, ml_exp_name, ml_exp_number):
     model_filename = os.path.join("Results", 
         "{}_{}_{}.pkl".format(exp_design, ml_exp_number, ml_exp_name))
 
@@ -439,8 +523,8 @@ def update_core(exp_design, ml_exp_name, ml_exp_number, show_qc):
 
 
     # Compute Metrics table
-    metric_table = get_experiment_statistics(train_targets, train_predict, \
-        test_targets, test_predict)
+    #metric_table = get_experiment_statistics(train_targets, train_predict, \
+    #    test_targets, test_predict)
 
     # Filter important features
     if isinstance(gc.best_estimator_, RandomForestClassifier) or \
@@ -452,11 +536,11 @@ def update_core(exp_design, ml_exp_name, ml_exp_number, show_qc):
     zipped = zip(features_importance, train_df.columns)
     zipped = sorted(zipped, key = lambda t:t[0])
 
-    if np.sum(features_importance > 0.0) < NUMBER_METABO_TO_KEEP_FOR_PCA:
+    if np.sum(features_importance > 0.0) < NUMBER_FEATURE_TO_KEEP_FOR_PCA:
         important_index = [i[1] for i in zipped[-1 * np.sum(features_importance > 0.0):]]
         print(important_index)
     else:
-        important_index = [i[1] for i in zipped[-1 * NUMBER_METABO_TO_KEEP_FOR_PCA:]]
+        important_index = [i[1] for i in zipped[-1 * NUMBER_FEATURE_TO_KEEP_FOR_PCA:]]
         print(important_index)
     
     train_df_filtered = train_df[important_index]
@@ -505,11 +589,11 @@ def update_core(exp_design, ml_exp_name, ml_exp_number, show_qc):
     # Create heatmap using merged DF
     heatmap = get_static_heatmap_plot(StandardScaler().fit_transform(merged_df), \
         merged_df.columns.values, merged_df.index, merged_targets)
-    heatmap_title = "Heat-map of {} metabolite normalized abuncance across the different samples".format(
+    heatmap_title = "Heat-map of {} metabolite normalized abundnce across the different samples".format(
         train_df_filtered.shape[1])
     #Return values
     return figure_pca, pca_title, metabolite_dropdown, selected_metabolite_value, \
-        heatmap, heatmap_title, metric_table, view_info_children
+        heatmap, heatmap_title, view_info_children
 
 
 def get_static_heatmap_plot(NpArray, Label_X, Label_Y, targets):

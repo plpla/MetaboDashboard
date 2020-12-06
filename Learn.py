@@ -11,21 +11,6 @@ from ExperimentDesign import *
 from Utils import *
 
 if __name__ == "__main__":
-    # Read data matrix
-    compounds, normalized, raw, labels, sample_names = read_Progenesis_compounds_table(DATA_MATRIX)
-
-    # Read metadata
-    metadata = pd.read_excel(METADATA, index_col=0)
-
-    # Merge data matrix and metadata
-    if LEARN_CONFIG["UseNormalized"]:
-        df = normalized.merge(right=metadata, how="left", right_index=True, left_index=True)
-    else:
-        df = raw.merge(right=metadata, how="left", right_index=True,left_index=True)
-
-    # Prepare a bunch of splits.
-    generate_splits(df, labels)
-
     # Create a list of jobs. Jobs are a set with the following structure:
     # (filename, algo_config_name, algo_function, grid)
     learning_job_list = []
@@ -36,8 +21,8 @@ if __name__ == "__main__":
                 LEARN_CONFIG["Algos"][algo_config]["function"],
                 LEARN_CONFIG["Algos"][algo_config]["ParamGrid"]))
 
-    pool = Pool(4)
-    pool.map(run_learning_job, learning_job_list[0:3])
+    pool = Pool(6)
+    pool.map(run_learning_job, learning_job_list)
     #run_learning_job(learning_job_list[0])
     
 

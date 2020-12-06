@@ -3,24 +3,25 @@ from sklearn.svm import LinearSVC, SVC
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import NearestNeighbors
+from sklearn.ensemble import AdaBoostClassifier
 
 LEARN_CONFIG={
-    "Nsplit": 100,
-    #"Preprocessing": None #Could be [StandardScaler] if StandardScaler is imported. Not implemented yet...
-    "UseNormalized": True, # Make sure it works if False. Is it only when using Progenesis input file?
-    "CV_folds": 5,
+    "FileType": "progenesis", # progenesis, excel, csv or tsv
+    "UseNormalized": True, # If using progenesis file. Otherwise it is not considered
+    "Nsplit": 3,
+    "CV_folds": 3,
     "Algos":{
         "DecisionTree":{
             "function": DecisionTreeClassifier,
             "ParamGrid": {
-                "max_depth": [1, 2, 3, 4,],
-                "min_samples_split": [2, 3, 4]
+                "max_depth": [1, 3, 5, 10],
+                "min_samples_split": [2, 5, 10]
             }
         },
         "RandomForest":{
             "function": RandomForestClassifier,
             "ParamGrid": {
-                "n_estimators": [1, 2, 4, 10, 30, 70, 100]
+                "n_estimators": [30, 100]
             }
         },
     }
